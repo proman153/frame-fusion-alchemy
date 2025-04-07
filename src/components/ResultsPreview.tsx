@@ -3,10 +3,11 @@ import React from "react";
 import { Download, RefreshCcw, Share2, Maximize2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useVideoProcessing } from "@/contexts/VideoProcessingContext";
 
 const ResultsPreview: React.FC = () => {
-  const { frames, status, prompt, startProcessing, resetProcess } = useVideoProcessing();
+  const { frames, status, prompt, startProcessing, resetProcess, viewMode, setViewMode } = useVideoProcessing();
   
   const isComplete = status === "complete";
   const isProcessing = status === "processing";
@@ -48,6 +49,10 @@ const ResultsPreview: React.FC = () => {
     );
   }
 
+  // Helper functions to filter frames for different views
+  const transformedFrames = frames.filter(frame => frame.type === "transformed" && frame.transformed);
+  const originalFrames = frames.filter(frame => frame.type === "original");
+
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -83,32 +88,115 @@ const ResultsPreview: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {frames.map((frame) => (
-                <div key={frame.id} className="group relative">
-                  <div className="relative overflow-hidden rounded-lg border border-white/10">
-                    <img 
-                      src={frame.transformed || frame.original} 
-                      alt={`Frame ${frame.id}`} 
-                      className="w-full h-auto object-cover aspect-video"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
-                      <span className="text-xs font-medium text-white">
-                        {frame.type === "original" ? "Original" : "Transformed"}
-                      </span>
-                      <div className="flex gap-1">
-                        <button className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
-                          <Maximize2 className="h-3.5 w-3.5 text-white" />
-                        </button>
-                        <button className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
-                          <Download className="h-3.5 w-3.5 text-white" />
-                        </button>
+            <Tabs 
+              defaultValue="frames"
+              className="mb-6" 
+              value={viewMode} 
+              onValueChange={(value) => setViewMode(value as "frames" | "comparison" | "gallery")}
+            >
+              <TabsList className="bg-black/50 border border-white/10">
+                <TabsTrigger value="frames" className="data-[state=active]:bg-fusion-primary data-[state=active]:text-white">
+                  All Frames
+                </TabsTrigger>
+                <TabsTrigger value="comparison" className="data-[state=active]:bg-fusion-primary data-[state=active]:text-white">
+                  Before & After
+                </TabsTrigger>
+                <TabsTrigger value="gallery" className="data-[state=active]:bg-fusion-primary data-[state=active]:text-white">
+                  Gallery
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="frames" className="mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {frames.map((frame) => (
+                    <div key={frame.id} className="group relative">
+                      <div className="relative overflow-hidden rounded-lg border border-white/10">
+                        <img 
+                          src={frame.transformed || frame.original} 
+                          alt={`Frame ${frame.id}`} 
+                          className="w-full h-auto object-cover aspect-video"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
+                          <span className="text-xs font-medium text-white">
+                            {frame.type === "original" ? "Original" : "Transformed"}
+                          </span>
+                          <div className="flex gap-1">
+                            <button className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+                              <Maximize2 className="h-3.5 w-3.5 text-white" />
+                            </button>
+                            <button className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+                              <Download className="h-3.5 w-3.5 text-white" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </TabsContent>
+              
+              <TabsContent value="comparison" className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {transformedFrames.map((frame, index) => {
+                    const originalFrame = originalFrames[index % originalFrames.length];
+                    return (
+                      <div key={frame.id} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="relative rounded-lg overflow-hidden border border-white/10">
+                            <img 
+                              src={originalFrame?.original} 
+                              alt="Original frame" 
+                              className="w-full h-auto object-cover aspect-video"
+                            />
+                            <span className="absolute bottom-2 left-2 text-xs font-medium bg-black/50 rounded-md px-2 py-1 text-white">
+                              Before
+                            </span>
+                          </div>
+                          
+                          <div className="relative rounded-lg overflow-hidden border border-white/10">
+                            <img 
+                              src={frame.transformed} 
+                              alt="Transformed frame" 
+                              className="w-full h-auto object-cover aspect-video"
+                            />
+                            <span className="absolute bottom-2 left-2 text-xs font-medium bg-black/50 rounded-md px-2 py-1 text-white">
+                              After
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button variant="outline" size="sm" className="border-white/10 text-white hover:bg-white/5">
+                            <Download className="mr-2 h-3.5 w-3.5" />
+                            Save Pair
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="gallery" className="mt-6">
+                <div className="columns-1 sm:columns-2 md:columns-3 gap-4 space-y-4">
+                  {frames.map((frame) => (
+                    <div key={frame.id} className="break-inside-avoid mb-4">
+                      <div className="relative rounded-lg overflow-hidden border border-white/10">
+                        <img 
+                          src={frame.transformed || frame.original} 
+                          alt={`Frame ${frame.id}`} 
+                          className="w-full h-auto"
+                        />
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                          <span className="text-xs font-medium text-white">
+                            {frame.type === "original" ? "Original" : "Transformed"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
             
             <div className="mt-8 text-center">
               <Button variant="outline" className="border-white/10 text-white hover:bg-white/5">

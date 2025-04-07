@@ -1,9 +1,10 @@
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 type VideoInputMethod = "upload" | "url";
 type ProcessingStatus = "idle" | "uploading" | "processing" | "complete" | "error";
+type ViewMode = "frames" | "comparison" | "gallery";
 
 interface VideoFrame {
   id: string;
@@ -27,6 +28,10 @@ interface VideoProcessingContextType {
   setStatus: (status: ProcessingStatus) => void;
   frames: VideoFrame[];
   setFrames: (frames: VideoFrame[]) => void;
+  apiKey: string;
+  setApiKey: (key: string) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
   startProcessing: () => void;
   resetProcess: () => void;
 }
@@ -53,7 +58,20 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [frames, setFrames] = useState<VideoFrame[]>([]);
+  const [apiKey, setApiKey] = useState<string>(() => {
+    // Try to get API key from localStorage
+    const savedKey = localStorage.getItem("video_transform_api_key");
+    return savedKey || "";
+  });
+  const [viewMode, setViewMode] = useState<ViewMode>("frames");
   const { toast } = useToast();
+
+  // Save API key to localStorage when it changes
+  useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem("video_transform_api_key", apiKey);
+    }
+  }, [apiKey]);
 
   // Mock video processing function (in a real app, this would connect to a backend API)
   const startProcessing = () => {
@@ -70,6 +88,15 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
       toast({
         title: "No video selected",
         description: "Please upload a video or enter a valid URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!apiKey) {
+      toast({
+        title: "Missing API key",
+        description: "Please enter your API key in the settings",
         variant: "destructive",
       });
       return;
@@ -105,7 +132,7 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
           });
         }
         
-        // Simulate API processing for transforms
+        // Simulate API processing for transforms using the API key
         const transformInterval = setInterval(() => {
           currentProgress += 2;
           setProgress(currentProgress);
@@ -149,6 +176,10 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
         setStatus,
         frames,
         setFrames,
+        apiKey,
+        setApiKey,
+        viewMode,
+        setViewMode,
         startProcessing,
         resetProcess
       }}
