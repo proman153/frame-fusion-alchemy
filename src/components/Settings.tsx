@@ -1,9 +1,9 @@
 
 import React, { useState } from "react";
-import { Settings as SettingsIcon, Save, Eye, EyeOff } from "lucide-react";
+import { Settings as SettingsIcon, Save, Eye, EyeOff, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useVideoProcessing } from "@/contexts/VideoProcessingContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,6 +14,15 @@ const Settings: React.FC = () => {
   const { toast } = useToast();
 
   const saveSettings = () => {
+    if (!tempApiKey.trim()) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter a valid API key to enable video transformations",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setApiKey(tempApiKey);
     toast({
       title: "Settings saved",
@@ -36,14 +45,20 @@ const Settings: React.FC = () => {
       <SheetContent className="bg-fusion-dark border-white/10 text-white">
         <SheetHeader>
           <SheetTitle className="text-white">Settings</SheetTitle>
+          <SheetDescription className="text-gray-400">
+            Configure your VideoFusion API settings
+          </SheetDescription>
         </SheetHeader>
         
         <div className="mt-6 space-y-6">
           <div className="space-y-2">
             <h3 className="text-lg font-medium">API Configuration</h3>
-            <p className="text-sm text-gray-400">
-              Enter your API key for video transformation services
-            </p>
+            <div className="flex items-start space-x-2 text-sm text-gray-400 mb-3">
+              <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p>
+                Enter your VideoFusion API key to enable video transformations. Without a valid API key, you won't be able to transform videos.
+              </p>
+            </div>
             
             <div className="relative">
               <Input
@@ -62,7 +77,11 @@ const Settings: React.FC = () => {
               </button>
             </div>
             
-            <Button onClick={saveSettings} className="mt-2 bg-fusion-primary hover:bg-fusion-primary/90">
+            <p className="text-xs text-fusion-primary mt-2">
+              For this demo, you can use any non-empty string as an API key.
+            </p>
+            
+            <Button onClick={saveSettings} className="mt-4 bg-fusion-primary hover:bg-fusion-primary/90 w-full">
               <Save className="mr-2 h-4 w-4" />
               Save Settings
             </Button>
