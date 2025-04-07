@@ -1,9 +1,10 @@
 
-import React, { useState } from "react";
-import { Wand2, Lightbulb, Sparkles } from "lucide-react";
+import React from "react";
+import { Wand2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { useVideoProcessing } from "@/contexts/VideoProcessingContext";
 
 const examplePrompts = [
   "Convert each frame into a cinematic anime style with vibrant colors",
@@ -13,7 +14,9 @@ const examplePrompts = [
 ];
 
 const PromptSection: React.FC = () => {
-  const [prompt, setPrompt] = useState("");
+  const { prompt, setPrompt, startProcessing, status } = useVideoProcessing();
+  
+  const isProcessing = status === "processing";
   
   const handleExampleClick = (example: string) => {
     setPrompt(example);
@@ -38,6 +41,7 @@ const PromptSection: React.FC = () => {
               className="min-h-[120px] bg-black/50 border-white/10 text-white placeholder:text-gray-500 focus:border-fusion-primary focus:ring-fusion-primary/50"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              disabled={isProcessing}
             />
             
             <div>
@@ -52,6 +56,7 @@ const PromptSection: React.FC = () => {
                     variant="outline"
                     className="justify-start h-auto py-3 px-4 border-white/10 bg-white/5 hover:bg-white/10 text-left"
                     onClick={() => handleExampleClick(example)}
+                    disabled={isProcessing}
                   >
                     <span className="truncate">{example}</span>
                   </Button>
@@ -62,9 +67,11 @@ const PromptSection: React.FC = () => {
             <Button
               size="lg"
               className="w-full md:w-auto bg-gradient-to-r from-fusion-primary to-fusion-accent hover:opacity-90 text-white"
+              onClick={startProcessing}
+              disabled={isProcessing}
             >
               <Wand2 className="mr-2 h-5 w-5" />
-              Apply Transformation
+              {isProcessing ? "Processing..." : "Apply Transformation"}
             </Button>
           </div>
         </Card>

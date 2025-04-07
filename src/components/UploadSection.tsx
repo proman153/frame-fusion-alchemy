@@ -1,21 +1,30 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { Upload, UploadCloud, Film, AlertCircle, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useVideoProcessing } from "@/contexts/VideoProcessingContext";
 
 const UploadSection: React.FC = () => {
+  const { 
+    file,
+    setFile,
+    videoUrl,
+    setVideoUrl, 
+    inputMethod,
+    setInputMethod,
+    progress,
+    status,
+    setStatus
+  } = useVideoProcessing();
+  
   const [isDragging, setIsDragging] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string>("");
-  const [inputMethod, setInputMethod] = useState<"upload" | "url">("upload");
   const { toast } = useToast();
+  
+  const isUploading = status === "uploading" || status === "processing";
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -77,7 +86,7 @@ const UploadSection: React.FC = () => {
     setFile(file);
     setInputMethod("upload");
     setVideoUrl("");
-    setIsUploading(true);
+    setStatus("uploading");
     
     // Simulate upload progress
     let currentProgress = 0;
@@ -87,7 +96,7 @@ const UploadSection: React.FC = () => {
       
       if (currentProgress >= 100) {
         clearInterval(interval);
-        setIsUploading(false);
+        setStatus("idle");
         toast({
           title: "Upload complete",
           description: "Your video has been uploaded successfully!"
@@ -120,7 +129,7 @@ const UploadSection: React.FC = () => {
 
     setFile(null);
     setInputMethod("url");
-    setIsUploading(true);
+    setStatus("uploading");
     
     // Simulate processing progress
     let currentProgress = 0;
@@ -130,7 +139,7 @@ const UploadSection: React.FC = () => {
       
       if (currentProgress >= 100) {
         clearInterval(interval);
-        setIsUploading(false);
+        setStatus("idle");
         toast({
           title: "Video processed",
           description: "Your video URL has been processed successfully!"
@@ -143,7 +152,7 @@ const UploadSection: React.FC = () => {
     setFile(null);
     setVideoUrl("");
     setProgress(0);
-    setIsUploading(false);
+    setStatus("idle");
     setInputMethod("upload");
   };
 
