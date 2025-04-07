@@ -17,6 +17,7 @@ const UploadSection: React.FC = () => {
     inputMethod,
     setInputMethod,
     progress,
+    setProgress,
     status,
     setStatus
   } = useVideoProcessing();
