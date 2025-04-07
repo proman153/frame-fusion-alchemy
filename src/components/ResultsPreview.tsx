@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Download, RefreshCcw, Share2, Maximize2 } from "lucide-react";
+import { Download, RefreshCcw, Share2, Maximize2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
