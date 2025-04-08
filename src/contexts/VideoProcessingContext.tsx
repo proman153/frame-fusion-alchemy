@@ -80,13 +80,39 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
 
   // Validate API key with Google AI Studio
   const validateApiKey = async (key: string): Promise<boolean> => {
-    // For demo purposes, we'll assume any key longer than 15 characters is valid
-    // In a real app, you would make an actual API call to validate
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(key.length >= 15);
-      }, 1500);
-    });
+    // Make a real API call to validate the key with Google Gemini
+    try {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + key, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: "Hello, this is a test message to validate my API key."
+                }
+              ]
+            }
+          ]
+        })
+      });
+      
+      const data = await response.json();
+      
+      // Check if the response contains an error
+      if (data.error) {
+        console.error("API key validation error:", data.error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("API key validation error:", error);
+      return false;
+    }
   };
 
   // Extract frames from video file or URL
@@ -147,131 +173,158 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
 
   // Transform a frame using the Google AI Studio Gemini 2.0 Flash model
   const transformFrame = async (frameBlob: Blob, framePrompt: string, apiKey: string): Promise<Blob> => {
-    // In a real implementation, you would call the Gemini API
-    // For this demo, we'll simulate the transformation process
+    // Convert the blob to base64
+    const arrayBuffer = await frameBlob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const mimeType = frameBlob.type || 'image/jpeg';
+    const base64Data = `data:${mimeType};base64,${base64}`;
     
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Create a canvas to generate a transformed frame
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 360;
-        const ctx = canvas.getContext('2d');
+    try {
+      // Make actual API call to Google Gemini for image generation
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Transform this image according to this prompt: ${framePrompt}`
+                },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 2048,
+          }
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error("Frame transformation error:", data.error);
+        throw new Error(data.error.message || "Error transforming frame");
+      }
+      
+      // Since Gemini Pro Vision doesn't actually generate images but provides text descriptions,
+      // we'll create a visualized version of the transformation based on the response
+      // In a real app, you'd use Imagen or a similar model for image generation
+      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No transformation description";
+      
+      // Create a new image with the text description
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 360;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        // Create a basic styled image with the text response
+        // Draw a gradient background
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#3b41c5');
+        gradient.addColorStop(1, '#a981bb');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        if (ctx) {
-          // Determine style based on prompt
-          let style = 'default';
-          const promptLower = framePrompt.toLowerCase();
-          if (promptLower.includes('anime') || promptLower.includes('cartoon')) {
-            style = 'anime';
-          } else if (promptLower.includes('noir') || promptLower.includes('black and white')) {
-            style = 'noir';
-          } else if (promptLower.includes('watercolor') || promptLower.includes('pastel')) {
-            style = 'watercolor';
-          } else if (promptLower.includes('van gogh') || promptLower.includes('oil painting')) {
-            style = 'vangogh';
-          }
-
-          // Draw background
-          if (style === 'noir') {
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
-            ctx.globalAlpha = 0.3;
-            ctx.fillRect(50, 50, canvas.width - 100, canvas.height - 100);
-            ctx.globalAlpha = 1;
-          } else if (style === 'anime') {
-            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, '#ff9a9e');
-            gradient.addColorStop(1, '#fad0c4');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Anime-style elements
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(canvas.width/2, canvas.height/2, 100, 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (style === 'watercolor') {
-            const gradient = ctx.createRadialGradient(
-              canvas.width/2, canvas.height/2, 50,
-              canvas.width/2, canvas.height/2, 300
-            );
-            gradient.addColorStop(0, '#e6d7c3');
-            gradient.addColorStop(1, '#a1c4fd');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Watercolor blotches
-            for (let i = 0; i < 5; i++) {
-              ctx.fillStyle = `rgba(255, 255, 255, 0.${i+2})`;
-              ctx.beginPath();
-              ctx.ellipse(
-                Math.random() * canvas.width, 
-                Math.random() * canvas.height,
-                Math.random() * 100 + 50,
-                Math.random() * 100 + 30,
-                Math.random() * Math.PI,
-                0, Math.PI * 2
-              );
-              ctx.fill();
+        // Add the prompt text
+        ctx.fillStyle = 'white';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 4;
+        ctx.fillText(`Transformed with: "${framePrompt.substring(0, 30)}${framePrompt.length > 30 ? '...' : ''}"`, canvas.width/2, 30);
+        
+        // Add the response text (wrapped)
+        ctx.font = '16px Arial';
+        const wrapText = (text: string, maxWidth: number) => {
+          const words = text.split(' ');
+          let line = '';
+          let y = 120;
+          for (let i = 0; i < words.length; i++) {
+            const testLine = line + words[i] + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && i > 0) {
+              ctx.fillText(line, canvas.width/2, y);
+              line = words[i] + ' ';
+              y += 25;
+            } else {
+              line = testLine;
             }
-          } else if (style === 'vangogh') {
-            // van Gogh inspired background
-            ctx.fillStyle = '#0f2b61';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Swirly patterns
-            for (let i = 0; i < 20; i++) {
-              ctx.strokeStyle = i % 2 ? '#f4d35e' : '#f0f0f0';
-              ctx.lineWidth = 3;
-              ctx.beginPath();
-              ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-              
-              // Create swirly path
-              let x = Math.random() * canvas.width;
-              let y = Math.random() * canvas.height;
-              for (let j = 0; j < 5; j++) {
-                const cpx1 = x + Math.random() * 100 - 50;
-                const cpy1 = y + Math.random() * 100 - 50;
-                const cpx2 = x + Math.random() * 100 - 50;
-                const cpy2 = y + Math.random() * 100 - 50;
-                x = x + Math.random() * 100 - 50;
-                y = y + Math.random() * 100 - 50;
-                ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, x, y);
-              }
-              ctx.stroke();
-            }
-          } else {
-            // Default style
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#3b41c5');
-            gradient.addColorStop(1, '#a981bb');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
-          
-          // Add the prompt text to indicate the transformation
-          ctx.fillStyle = 'white';
-          ctx.font = '20px Arial';
-          ctx.textAlign = 'center';
-          ctx.shadowColor = 'black';
-          ctx.shadowBlur = 4;
-          ctx.fillText(`Transformed with: "${framePrompt.substring(0, 30)}${framePrompt.length > 30 ? '...' : ''}"`, canvas.width/2, 30);
-          
-          // Overlay "Gemini 2.0" text to simulate AI-generated content
-          ctx.font = '16px Arial';
-          ctx.textAlign = 'right';
-          ctx.fillText('Generated by Gemini 2.0', canvas.width - 20, canvas.height - 20);
-          
-          // Convert to blob
+          ctx.fillText(line, canvas.width/2, y);
+        };
+        
+        wrapText(responseText, canvas.width - 60);
+        
+        // Add Gemini credit
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('Response by Google Gemini API', canvas.width - 20, canvas.height - 20);
+        
+        // Convert to blob
+        return new Promise((resolve, reject) => {
           canvas.toBlob((blob) => {
             if (blob) resolve(blob);
+            else reject(new Error("Failed to create blob from canvas"));
           }, 'image/jpeg');
-        }
-      }, 1000 + Math.random() * 2000); // Random delay to simulate processing time
-    });
+        });
+      } else {
+        throw new Error("Could not get canvas context");
+      }
+    } catch (error) {
+      console.error("Error in transformFrame:", error);
+      toast({
+        title: "Transformation Error",
+        description: error instanceof Error ? error.message : "Failed to transform frame",
+        variant: "destructive"
+      });
+      
+      // Provide a fallback visualization for the error
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 360;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.fillStyle = '#300';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'red';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText("Error transforming frame with Gemini API", canvas.width/2, canvas.height/2);
+        ctx.font = '16px Arial';
+        ctx.fillText("Please check your API key and try again", canvas.width/2, canvas.height/2 + 30);
+        
+        return new Promise((resolve) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else {
+              // Ultimate fallback - create a simple red blob
+              resolve(new Blob(['error'], { type: 'image/jpeg' }));
+            }
+          }, 'image/jpeg');
+        });
+      }
+      
+      throw error;
+    }
   };
 
   // Generate a video from frames

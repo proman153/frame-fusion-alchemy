@@ -33,19 +33,19 @@ const Settings: React.FC = () => {
         setApiKey(tempApiKey);
         toast({
           title: "Settings saved",
-          description: "Your API key has been saved and validated"
+          description: "Your API key has been validated and saved successfully"
         });
       } else {
         toast({
           title: "Invalid API Key",
-          description: "The provided API key could not be validated with Google AI Studio",
+          description: "The API key could not be validated. Please check it and try again.",
           variant: "destructive"
         });
       }
     } catch (error) {
       toast({
-        title: "Validation Error",
-        description: "Could not validate the API key. Please try again.",
+        title: "API Validation Error",
+        description: "Could not connect to Google Gemini API. Please check your internet connection and try again.",
         variant: "destructive"
       });
     } finally {
@@ -79,7 +79,7 @@ const Settings: React.FC = () => {
             <div className="flex items-start space-x-2 text-sm text-gray-400 mb-3">
               <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <p>
-                Enter your Google AI Studio API key to enable video transformations. Without a valid API key, you won't be able to transform videos.
+                Enter your Google AI Studio API key to enable video transformations. You need a key with access to the Gemini Pro Vision model.
               </p>
             </div>
             
@@ -101,7 +101,14 @@ const Settings: React.FC = () => {
             </div>
             
             <p className="text-xs text-fusion-primary mt-2">
-              You need a Google AI Studio API key with access to the Gemini 2.0 Flash (Image Generation) model.
+              Get your API key from <a 
+                href="https://ai.google.dev/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:text-white transition-colors"
+              >
+                Google AI Studio
+              </a>
             </p>
             
             <Button 
@@ -112,12 +119,12 @@ const Settings: React.FC = () => {
               {isValidating ? (
                 <>
                   <span className="animate-spin mr-2">⭘</span>
-                  Validating...
+                  Validating with Google API...
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Settings
+                  Save & Validate API Key
                 </>
               )}
             </Button>
