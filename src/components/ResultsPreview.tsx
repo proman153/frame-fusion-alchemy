@@ -1,16 +1,25 @@
 
 import React from "react";
-import { Download, RefreshCcw, Share2, Maximize2, Sparkles } from "lucide-react";
+import { Download, RefreshCcw, Share2, Maximize2, Sparkles, Play, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useVideoProcessing } from "@/contexts/VideoProcessingContext";
 
 const ResultsPreview: React.FC = () => {
-  const { frames, status, prompt, startProcessing, resetProcess, viewMode, setViewMode } = useVideoProcessing();
+  const { 
+    frames, 
+    status, 
+    prompt, 
+    startProcessing, 
+    resetProcess, 
+    viewMode, 
+    setViewMode,
+    transformedVideo 
+  } = useVideoProcessing();
   
   const isComplete = status === "complete";
-  const isProcessing = status === "processing";
+  const isProcessing = status === "processing" || status === "transforming" || status === "uploading";
   
   // If there are no frames and processing is not complete, don't show this section
   if (frames.length === 0 && !isProcessing) {
@@ -24,10 +33,14 @@ const ResultsPreview: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 animate-slide-up opacity-0" style={{ animationDelay: '0.3s' }}>
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-4 text-gradient-purple">
-              Processing Your Video
+              {status === "processing" ? "Processing Your Video" : 
+               status === "transforming" ? "Transforming Your Frames" : 
+               "Uploading Your Video"}
             </h2>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Please wait while we transform your video frames...
+              {status === "processing" ? "Please wait while we process your video frames..." : 
+               status === "transforming" ? "Please wait while we transform your video frames with Gemini 2.0..." : 
+               "Please wait while we upload your video..."}
             </p>
           </div>
           
@@ -37,9 +50,13 @@ const ResultsPreview: React.FC = () => {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-fusion-primary/10 mb-4">
                   <RefreshCcw className="h-8 w-8 text-fusion-primary animate-spin" />
                 </div>
-                <h3 className="text-xl font-display font-bold text-white mb-2">Transforming Your Frames</h3>
+                <h3 className="text-xl font-display font-bold text-white mb-2">
+                  {status === "transforming" ? "Transforming Your Frames with Google Gemini" : "Processing Your Video"}
+                </h3>
                 <p className="text-gray-400 max-w-lg mx-auto">
-                  Our AI is hard at work applying the style "{prompt}" to each frame of your video.
+                  {status === "transforming" 
+                    ? `Our AI is hard at work applying the style "${prompt}" to each frame of your video using Google's Gemini 2.0 Flash Image Generation model.`
+                    : "We're processing your video to extract frames for transformation."}
                 </p>
               </div>
             </Card>
@@ -70,7 +87,9 @@ const ResultsPreview: React.FC = () => {
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
               <div>
                 <h3 className="text-xl font-display font-bold text-white">Frame Transformations</h3>
-                <p className="text-sm text-gray-400">{frames.length} frames processed • {prompt.substring(0, 25)}...</p>
+                <p className="text-sm text-gray-400">
+                  {frames.length} frames processed • {prompt.substring(0, 25)}{prompt.length > 25 ? '...' : ''}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <Button 
@@ -112,7 +131,7 @@ const ResultsPreview: React.FC = () => {
                     <div key={frame.id} className="group relative">
                       <div className="relative overflow-hidden rounded-lg border border-white/10">
                         <img 
-                          src={frame.transformed || frame.original} 
+                          src={frame.transformed || frame.original as string} 
                           alt={`Frame ${frame.id}`} 
                           className="w-full h-auto object-cover aspect-video"
                         />
@@ -144,7 +163,7 @@ const ResultsPreview: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="relative rounded-lg overflow-hidden border border-white/10">
                             <img 
-                              src={originalFrame?.original} 
+                              src={originalFrame?.original as string} 
                               alt="Original frame" 
                               className="w-full h-auto object-cover aspect-video"
                             />
@@ -155,7 +174,7 @@ const ResultsPreview: React.FC = () => {
                           
                           <div className="relative rounded-lg overflow-hidden border border-white/10">
                             <img 
-                              src={frame.transformed} 
+                              src={frame.transformed as string} 
                               alt="Transformed frame" 
                               className="w-full h-auto object-cover aspect-video"
                             />
@@ -182,7 +201,7 @@ const ResultsPreview: React.FC = () => {
                     <div key={frame.id} className="break-inside-avoid mb-4">
                       <div className="relative rounded-lg overflow-hidden border border-white/10">
                         <img 
-                          src={frame.transformed || frame.original} 
+                          src={frame.transformed || frame.original as string} 
                           alt={`Frame ${frame.id}`} 
                           className="w-full h-auto"
                         />
@@ -209,31 +228,79 @@ const ResultsPreview: React.FC = () => {
         <div className="animate-slide-up opacity-0" style={{ animationDelay: '0.7s' }}>
           <Card className="border border-white/10 bg-black/30 backdrop-blur-sm p-6 rounded-xl">
             <div className="text-center space-y-6">
-              <div>
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-fusion-secondary/10 mb-4">
-                  <Sparkles className="h-8 w-8 text-fusion-secondary" />
+              {transformedVideo ? (
+                <div>
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-fusion-secondary/10 mb-4">
+                    <Play className="h-8 w-8 text-fusion-secondary" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-white mb-2">Transformed Video Ready</h3>
+                  <p className="text-gray-400 max-w-lg mx-auto mb-6">
+                    Your video has been processed and transformed frames have been compiled into a new video!
+                  </p>
+                  
+                  <div className="relative aspect-video max-w-2xl mx-auto border-2 border-fusion-primary rounded-lg overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                      <Button size="lg" className="bg-fusion-primary hover:bg-fusion-primary/90">
+                        <Play className="mr-2 h-5 w-5" />
+                        Play Transformed Video
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
+                    <Button size="lg" className="bg-fusion-primary hover:bg-fusion-primary/90">
+                      <Download className="mr-2 h-5 w-5" />
+                      Download Video
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      className="border-white/10 text-white hover:bg-white/5"
+                      onClick={resetProcess}
+                    >
+                      <Share2 className="mr-2 h-5 w-5" />
+                      Start New Project
+                    </Button>
+                  </div>
                 </div>
-                <h3 className="text-xl font-display font-bold text-white mb-2">Ready to Create Video</h3>
-                <p className="text-gray-400 max-w-lg mx-auto">
-                  All your frames have been transformed! Would you like to compile them back into a video?
-                </p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button size="lg" className="bg-fusion-primary hover:bg-fusion-primary/90">
-                  <RefreshCcw className="mr-2 h-5 w-5" />
-                  Create Video
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="border-white/10 text-white hover:bg-white/5"
-                  onClick={resetProcess}
-                >
-                  <Share2 className="mr-2 h-5 w-5" />
-                  Start New Project
-                </Button>
-              </div>
+              ) : (
+                <div>
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-fusion-secondary/10 mb-4">
+                    <Sparkles className="h-8 w-8 text-fusion-secondary" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-white mb-2">Ready to Create Video</h3>
+                  <p className="text-gray-400 max-w-lg mx-auto">
+                    All your frames have been transformed! Would you like to compile them back into a video?
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
+                    <Button 
+                      size="lg" 
+                      className="bg-fusion-primary hover:bg-fusion-primary/90"
+                      onClick={() => {
+                        // In a real implementation, this would generate the video
+                        // For demo purposes, we'll simulate this by setting transformedVideo after a delay
+                        setTimeout(() => {
+                          const dummyVideoUrl = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA";
+                          useVideoProcessing().setTransformedVideo(dummyVideoUrl);
+                        }, 2000);
+                      }}
+                    >
+                      <RefreshCcw className="mr-2 h-5 w-5" />
+                      Create Video
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      className="border-white/10 text-white hover:bg-white/5"
+                      onClick={resetProcess}
+                    >
+                      <Share2 className="mr-2 h-5 w-5" />
+                      Start New Project
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>

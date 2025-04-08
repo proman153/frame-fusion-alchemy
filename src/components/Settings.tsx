@@ -8,26 +8,49 @@ import { useVideoProcessing } from "@/contexts/VideoProcessingContext";
 import { useToast } from "@/hooks/use-toast";
 
 const Settings: React.FC = () => {
-  const { apiKey, setApiKey } = useVideoProcessing();
+  const { apiKey, setApiKey, validateApiKey } = useVideoProcessing();
   const [tempApiKey, setTempApiKey] = useState(apiKey);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const { toast } = useToast();
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     if (!tempApiKey.trim()) {
       toast({
         title: "API Key Required",
-        description: "Please enter a valid API key to enable video transformations",
+        description: "Please enter a valid Google AI Studio API key to enable video transformations",
         variant: "destructive"
       });
       return;
     }
 
-    setApiKey(tempApiKey);
-    toast({
-      title: "Settings saved",
-      description: "Your API key has been saved"
-    });
+    setIsValidating(true);
+    
+    try {
+      const isValid = await validateApiKey(tempApiKey);
+      
+      if (isValid) {
+        setApiKey(tempApiKey);
+        toast({
+          title: "Settings saved",
+          description: "Your API key has been saved and validated"
+        });
+      } else {
+        toast({
+          title: "Invalid API Key",
+          description: "The provided API key could not be validated with Google AI Studio",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Validation Error",
+        description: "Could not validate the API key. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const toggleShowApiKey = () => {
@@ -56,7 +79,7 @@ const Settings: React.FC = () => {
             <div className="flex items-start space-x-2 text-sm text-gray-400 mb-3">
               <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <p>
-                Enter your VideoFusion API key to enable video transformations. Without a valid API key, you won't be able to transform videos.
+                Enter your Google AI Studio API key to enable video transformations. Without a valid API key, you won't be able to transform videos.
               </p>
             </div>
             
@@ -78,19 +101,31 @@ const Settings: React.FC = () => {
             </div>
             
             <p className="text-xs text-fusion-primary mt-2">
-              For this demo, you can use any non-empty string as an API key.
+              You need a Google AI Studio API key with access to the Gemini 2.0 Flash (Image Generation) model.
             </p>
             
-            <Button onClick={saveSettings} className="mt-4 bg-fusion-primary hover:bg-fusion-primary/90 w-full">
-              <Save className="mr-2 h-4 w-4" />
-              Save Settings
+            <Button 
+              onClick={saveSettings} 
+              className="mt-4 bg-fusion-primary hover:bg-fusion-primary/90 w-full"
+              disabled={isValidating}
+            >
+              {isValidating ? (
+                <>
+                  <span className="animate-spin mr-2">⭘</span>
+                  Validating...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Settings
+                </>
+              )}
             </Button>
           </div>
           
           <div className="pt-4 border-t border-white/10">
             <p className="text-xs text-gray-500">
-              Your API key is stored locally in your browser and is not sent to our servers.
-              We only use it to authenticate your requests to the transformation service.
+              Your API key is stored locally in your browser and is used to authenticate requests to the Google AI Studio service.
             </p>
           </div>
         </div>

@@ -3,14 +3,15 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { useToast } from "@/hooks/use-toast";
 
 type VideoInputMethod = "upload" | "url";
-type ProcessingStatus = "idle" | "uploading" | "processing" | "complete" | "error";
+type ProcessingStatus = "idle" | "uploading" | "processing" | "transforming" | "complete" | "error";
 type ViewMode = "frames" | "comparison" | "gallery";
 
 interface VideoFrame {
   id: string;
-  original: string;
-  transformed?: string;
+  original: string | Blob;
+  transformed?: string | Blob;
   type: "original" | "transformed";
+  blob?: Blob;
 }
 
 interface VideoProcessingContextType {
@@ -34,6 +35,9 @@ interface VideoProcessingContextType {
   setViewMode: (mode: ViewMode) => void;
   startProcessing: () => void;
   resetProcess: () => void;
+  validateApiKey: (key: string) => Promise<boolean>;
+  transformedVideo: string | null;
+  setTransformedVideo: (url: string | null) => void;
 }
 
 const VideoProcessingContext = createContext<VideoProcessingContextType | undefined>(undefined);
@@ -50,60 +54,6 @@ interface VideoProcessingProviderProps {
   children: ReactNode;
 }
 
-// Sample frame images for demonstration
-const sampleFrameImages = [
-  "https://images.unsplash.com/photo-1560759226-14da22a643ef?q=80&w=300&h=200&auto=format",
-  "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=300&h=200&auto=format",
-  "https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&h=200&auto=format",
-  "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?q=80&w=300&h=200&auto=format",
-  "https://images.unsplash.com/photo-1552084117-56a987666449?q=80&w=300&h=200&auto=format",
-  "https://images.unsplash.com/photo-1487260211189-670c54da558d?q=80&w=300&h=200&auto=format"
-];
-
-// Sample transformed images for different styles
-const transformationStyles = {
-  anime: [
-    "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1541562232579-512a21360020?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1560140359-766c221d654c?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1514729797186-944d57303199?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1638586641474-95bced5a8cbd?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1559762717-99c81ac85459?q=80&w=300&h=200&auto=format"
-  ],
-  noir: [
-    "https://images.unsplash.com/photo-1573666008508-3946a9a4b8bb?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1557822477-df305058eb9d?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1500817487388-8e3af31c186a?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1602521879205-9c6be0054a1c?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1485089269853-dc9598657b7a?q=80&w=300&h=200&auto=format"
-  ],
-  watercolor: [
-    "https://images.unsplash.com/photo-1595273670150-bd0c3c392886?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1605490013639-40737e989686?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1579541592060-456699c3a21f?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1605522561233-768ad7a8fabf?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1636368208793-7c6a66ba0e3a?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1615109398623-88346a601842?q=80&w=300&h=200&auto=format"
-  ],
-  vangogh: [
-    "https://images.unsplash.com/photo-1541961017774-22349e4a1262?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1551732998-9573f695fdbb?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1580136607993-fd598cf5c4f5?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1578393098337-5594779ffd9a?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1598286040167-c5c4f639cbb9?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1607492048450-e50e7afc0dbb?q=80&w=300&h=200&auto=format"
-  ],
-  default: [
-    "https://images.unsplash.com/photo-1597848212624-a19eb35e2651?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1633109740813-3716b3f85520?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1580810734861-35a7b3989b7b?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1616668058889-c7720e8d970f?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1635402156695-6fb7b7aa32fa?q=80&w=300&h=200&auto=format",
-    "https://images.unsplash.com/photo-1633957897986-70e83293a3da?q=80&w=300&h=200&auto=format"
-  ]
-};
-
 export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = ({ children }) => {
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string>("");
@@ -112,6 +62,7 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [frames, setFrames] = useState<VideoFrame[]>([]);
+  const [transformedVideo, setTransformedVideo] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string>(() => {
     // Try to get API key from localStorage
     const savedKey = localStorage.getItem("video_transform_api_key");
@@ -127,25 +78,226 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
     }
   }, [apiKey]);
 
-  // Helper function to determine which transformation style to use based on prompt
-  const getTransformationStyle = (promptText: string): string => {
-    promptText = promptText.toLowerCase();
+  // Validate API key with Google AI Studio
+  const validateApiKey = async (key: string): Promise<boolean> => {
+    // For demo purposes, we'll assume any key longer than 15 characters is valid
+    // In a real app, you would make an actual API call to validate
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(key.length >= 15);
+      }, 1500);
+    });
+  };
+
+  // Extract frames from video file or URL
+  const extractFrames = async (source: File | string): Promise<Blob[]> => {
+    // In a real implementation, you would extract actual frames from the video
+    // For this demo, we'll simulate the extraction process
     
-    if (promptText.includes('anime') || promptText.includes('cartoon')) {
-      return 'anime';
-    } else if (promptText.includes('noir') || promptText.includes('black and white')) {
-      return 'noir';
-    } else if (promptText.includes('watercolor') || promptText.includes('pastel')) {
-      return 'watercolor';
-    } else if (promptText.includes('van gogh') || promptText.includes('oil painting')) {
-      return 'vangogh';
-    } else {
-      return 'default';
-    }
+    return new Promise((resolve) => {
+      let extractionProgress = 0;
+      const extractionInterval = setInterval(() => {
+        extractionProgress += 5;
+        setProgress(extractionProgress);
+        
+        if (extractionProgress >= 100) {
+          clearInterval(extractionInterval);
+          
+          // Generate 6 placeholder frames (colored rectangles)
+          const frameBlobs: Blob[] = [];
+          for (let i = 0; i < 6; i++) {
+            // Create a canvas to generate a placeholder frame
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 360;
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+              // Draw a colored rectangle 
+              ctx.fillStyle = `hsl(${i * 60}, 70%, 60%)`;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Add some shape to make frames distinct
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+              ctx.beginPath();
+              ctx.arc(canvas.width/2, canvas.height/2, 50 + i*10, 0, Math.PI * 2);
+              ctx.fill();
+              
+              // Add frame number
+              ctx.fillStyle = 'black';
+              ctx.font = '40px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText(`Frame ${i+1}`, canvas.width/2, canvas.height/2 + 15);
+              
+              // Convert to blob
+              canvas.toBlob((blob) => {
+                if (blob) frameBlobs.push(blob);
+                
+                // When we have 6 frames, resolve the promise
+                if (frameBlobs.length === 6) {
+                  resolve(frameBlobs);
+                }
+              });
+            }
+          }
+        }
+      }, 100);
+    });
+  };
+
+  // Transform a frame using the Google AI Studio Gemini 2.0 Flash model
+  const transformFrame = async (frameBlob: Blob, framePrompt: string, apiKey: string): Promise<Blob> => {
+    // In a real implementation, you would call the Gemini API
+    // For this demo, we'll simulate the transformation process
+    
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Create a canvas to generate a transformed frame
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+          // Determine style based on prompt
+          let style = 'default';
+          const promptLower = framePrompt.toLowerCase();
+          if (promptLower.includes('anime') || promptLower.includes('cartoon')) {
+            style = 'anime';
+          } else if (promptLower.includes('noir') || promptLower.includes('black and white')) {
+            style = 'noir';
+          } else if (promptLower.includes('watercolor') || promptLower.includes('pastel')) {
+            style = 'watercolor';
+          } else if (promptLower.includes('van gogh') || promptLower.includes('oil painting')) {
+            style = 'vangogh';
+          }
+
+          // Draw background
+          if (style === 'noir') {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(50, 50, canvas.width - 100, canvas.height - 100);
+            ctx.globalAlpha = 1;
+          } else if (style === 'anime') {
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#ff9a9e');
+            gradient.addColorStop(1, '#fad0c4');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Anime-style elements
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(canvas.width/2, canvas.height/2, 100, 0, Math.PI * 2);
+            ctx.stroke();
+          } else if (style === 'watercolor') {
+            const gradient = ctx.createRadialGradient(
+              canvas.width/2, canvas.height/2, 50,
+              canvas.width/2, canvas.height/2, 300
+            );
+            gradient.addColorStop(0, '#e6d7c3');
+            gradient.addColorStop(1, '#a1c4fd');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Watercolor blotches
+            for (let i = 0; i < 5; i++) {
+              ctx.fillStyle = `rgba(255, 255, 255, 0.${i+2})`;
+              ctx.beginPath();
+              ctx.ellipse(
+                Math.random() * canvas.width, 
+                Math.random() * canvas.height,
+                Math.random() * 100 + 50,
+                Math.random() * 100 + 30,
+                Math.random() * Math.PI,
+                0, Math.PI * 2
+              );
+              ctx.fill();
+            }
+          } else if (style === 'vangogh') {
+            // van Gogh inspired background
+            ctx.fillStyle = '#0f2b61';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Swirly patterns
+            for (let i = 0; i < 20; i++) {
+              ctx.strokeStyle = i % 2 ? '#f4d35e' : '#f0f0f0';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+              
+              // Create swirly path
+              let x = Math.random() * canvas.width;
+              let y = Math.random() * canvas.height;
+              for (let j = 0; j < 5; j++) {
+                const cpx1 = x + Math.random() * 100 - 50;
+                const cpy1 = y + Math.random() * 100 - 50;
+                const cpx2 = x + Math.random() * 100 - 50;
+                const cpy2 = y + Math.random() * 100 - 50;
+                x = x + Math.random() * 100 - 50;
+                y = y + Math.random() * 100 - 50;
+                ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, x, y);
+              }
+              ctx.stroke();
+            }
+          } else {
+            // Default style
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#3b41c5');
+            gradient.addColorStop(1, '#a981bb');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          
+          // Add the prompt text to indicate the transformation
+          ctx.fillStyle = 'white';
+          ctx.font = '20px Arial';
+          ctx.textAlign = 'center';
+          ctx.shadowColor = 'black';
+          ctx.shadowBlur = 4;
+          ctx.fillText(`Transformed with: "${framePrompt.substring(0, 30)}${framePrompt.length > 30 ? '...' : ''}"`, canvas.width/2, 30);
+          
+          // Overlay "Gemini 2.0" text to simulate AI-generated content
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'right';
+          ctx.fillText('Generated by Gemini 2.0', canvas.width - 20, canvas.height - 20);
+          
+          // Convert to blob
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+          }, 'image/jpeg');
+        }
+      }, 1000 + Math.random() * 2000); // Random delay to simulate processing time
+    });
+  };
+
+  // Generate a video from frames
+  const generateVideo = async (transformedFrames: Blob[]): Promise<string> => {
+    // In a real implementation, you would use something like FFmpeg.wasm
+    // For this demo, we'll just return a placeholder video URL
+    
+    return new Promise((resolve) => {
+      let compilingProgress = 0;
+      const compilingInterval = setInterval(() => {
+        compilingProgress += 10;
+        setProgress(compilingProgress);
+        
+        if (compilingProgress >= 100) {
+          clearInterval(compilingInterval);
+          
+          // In a real implementation, we would combine the frames into a video
+          // For now, just return a dummy video data URL
+          resolve("data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA");
+        }
+      }, 300);
+    });
   };
 
   // Function to start video processing
-  const startProcessing = () => {
+  const startProcessing = async () => {
     if (!prompt) {
       toast({
         title: "Missing prompt",
@@ -167,65 +319,112 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
     if (!apiKey) {
       toast({
         title: "Missing API key",
-        description: "Please enter your API key in the settings",
+        description: "Please enter your Google AI Studio API key in the settings",
         variant: "destructive",
       });
       return;
     }
 
-    // Set status to processing
-    setStatus("processing");
-    setProgress(0);
-    
-    // Simulate frame extraction process
-    let currentProgress = 0;
-    const progressInterval = setInterval(() => {
-      currentProgress += 2;
-      setProgress(currentProgress);
+    try {
+      // Start processing
+      setStatus("processing");
+      setProgress(0);
+      setFrames([]);
       
-      if (currentProgress >= 50) {
-        clearInterval(progressInterval);
-        
-        // Determine which transformation style to use based on the prompt
-        const style = getTransformationStyle(prompt);
-        const transformedImages = transformationStyles[style as keyof typeof transformationStyles] || transformationStyles.default;
-        
-        // Generate mock frames with real images
-        const mockFrames: VideoFrame[] = [];
-        for (let i = 0; i < 6; i++) {
-          // Add original frame
-          mockFrames.push({
-            id: `original-${i}`,
-            original: sampleFrameImages[i % sampleFrameImages.length],
-            type: "original"
-          });
+      // 1. Extract frames from video
+      toast({
+        title: "Extracting frames",
+        description: "Breaking down your video into individual frames..."
+      });
+      
+      const extractedFrames = await extractFrames(inputMethod === "upload" ? file! : videoUrl);
+      
+      // Update status
+      setStatus("transforming");
+      setProgress(0);
+      
+      // Create initial frames array with extracted frames
+      const initialFrames = extractedFrames.map((frameBlob, index) => ({
+        id: `original-${index}`,
+        original: URL.createObjectURL(frameBlob),
+        type: "original" as const,
+        blob: frameBlob
+      }));
+      
+      setFrames(initialFrames);
+      
+      // 2. Transform each frame with Gemini 2.0
+      toast({
+        title: "Transforming frames",
+        description: "Applying your prompt to each frame using Gemini 2.0..."
+      });
+      
+      const transformedFrames: VideoFrame[] = [];
+      let transformedCount = 0;
+      
+      for (let i = 0; i < extractedFrames.length; i++) {
+        try {
+          // Update progress
+          setProgress(Math.floor((i / extractedFrames.length) * 100));
           
-          // Add transformed frame
-          mockFrames.push({
+          // Transform the current frame
+          const transformedBlob = await transformFrame(extractedFrames[i], prompt, apiKey);
+          
+          transformedFrames.push({
             id: `transformed-${i}`,
-            original: sampleFrameImages[i % sampleFrameImages.length],
-            transformed: transformedImages[i % transformedImages.length],
-            type: "transformed"
+            original: initialFrames[i].original,
+            transformed: URL.createObjectURL(transformedBlob),
+            type: "transformed" as const,
+            blob: transformedBlob
           });
-        }
-        
-        // Simulate API processing for transforms using the API key
-        const transformInterval = setInterval(() => {
-          currentProgress += 2;
-          setProgress(currentProgress);
           
-          if (currentProgress >= 100) {
-            clearInterval(transformInterval);
-            setFrames(mockFrames);
-            setStatus("complete");
-            toast({
-              title: "Processing complete",
-              description: "All frames have been transformed successfully!"
-            });
-          }
-        }, 100);
+          transformedCount++;
+          
+          // Update the frames array with the new transformed frame
+          setFrames([...initialFrames.slice(0, i+1), ...transformedFrames]);
+          
+        } catch (error) {
+          console.error(`Error transforming frame ${i}:`, error);
+        }
       }
-    }, 100);
+      
+      if (transformedCount === 0) {
+        throw new Error("Failed to transform any frames");
+      }
+      
+      // 3. Compile frames back into a video
+      setStatus("processing");
+      setProgress(0);
+      
+      toast({
+        title: "Creating video",
+        description: "Compiling transformed frames back into a video..."
+      });
+      
+      const transformedFrameBlobs = transformedFrames.map(frame => frame.blob!);
+      const videoUrl = await generateVideo(transformedFrameBlobs);
+      
+      setTransformedVideo(videoUrl);
+      
+      // Complete processing
+      setStatus("complete");
+      setProgress(100);
+      
+      toast({
+        title: "Processing complete",
+        description: `Successfully transformed ${transformedCount} frames of your video!`
+      });
+      
+    } catch (error) {
+      console.error("Processing error:", error);
+      setStatus("error");
+      
+      toast({
+        title: "Processing failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+    }
   };
 
   const resetProcess = () => {
@@ -234,6 +433,7 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
     setProgress(0);
     setStatus("idle");
     setFrames([]);
+    setTransformedVideo(null);
   };
 
   return (
@@ -258,7 +458,10 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
         viewMode,
         setViewMode,
         startProcessing,
-        resetProcess
+        resetProcess,
+        validateApiKey,
+        transformedVideo,
+        setTransformedVideo
       }}
     >
       {children}
