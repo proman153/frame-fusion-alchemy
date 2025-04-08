@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -337,7 +336,8 @@ export const VideoProcessingProvider: React.FC<VideoProcessingProviderProps> = (
         description: "Breaking down your video into individual frames..."
       });
       
-      const extractedFrames = await extractFrames(inputMethod === "upload" ? file! : videoUrl);
+      const videoSource = inputMethod === "upload" ? file! : videoUrl;
+      const extractedFrames = await extractFrames(videoSource);
       
       // Update status
       setStatus("transforming");

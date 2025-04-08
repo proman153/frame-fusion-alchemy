@@ -131,7 +131,8 @@ const ResultsPreview: React.FC = () => {
                     <div key={frame.id} className="group relative">
                       <div className="relative overflow-hidden rounded-lg border border-white/10">
                         <img 
-                          src={frame.transformed || frame.original as string} 
+                          src={typeof frame.transformed === 'string' ? frame.transformed : 
+                               typeof frame.original === 'string' ? frame.original : ''}
                           alt={`Frame ${frame.id}`} 
                           className="w-full h-auto object-cover aspect-video"
                         />
@@ -163,7 +164,7 @@ const ResultsPreview: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="relative rounded-lg overflow-hidden border border-white/10">
                             <img 
-                              src={originalFrame?.original as string} 
+                              src={typeof originalFrame?.original === 'string' ? originalFrame.original : ''} 
                               alt="Original frame" 
                               className="w-full h-auto object-cover aspect-video"
                             />
@@ -174,7 +175,7 @@ const ResultsPreview: React.FC = () => {
                           
                           <div className="relative rounded-lg overflow-hidden border border-white/10">
                             <img 
-                              src={frame.transformed as string} 
+                              src={typeof frame.transformed === 'string' ? frame.transformed : ''} 
                               alt="Transformed frame" 
                               className="w-full h-auto object-cover aspect-video"
                             />
@@ -201,7 +202,8 @@ const ResultsPreview: React.FC = () => {
                     <div key={frame.id} className="break-inside-avoid mb-4">
                       <div className="relative rounded-lg overflow-hidden border border-white/10">
                         <img 
-                          src={frame.transformed || frame.original as string} 
+                          src={typeof frame.transformed === 'string' ? frame.transformed : 
+                               typeof frame.original === 'string' ? frame.original : ''} 
                           alt={`Frame ${frame.id}`} 
                           className="w-full h-auto"
                         />
